@@ -1,0 +1,163 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+no warnings 'experimental::smartmatch';
+
+use v5.16;
+use lib 'cgi-lib';
+
+use Path::Tiny qw/path/;
+use YAML::XS;
+use YAML::XS qw(LoadFile);
+
+use Data::Dmp;
+
+# ===================================================================
+# = INITIALIZATION                                                  =
+# ===================================================================
+# lets get the arguements passed
+my @args = @ARGV;
+
+usage() if ( scalar( @args ) < 1 || grep( /^help$/i, @args ) );
+
+# ===================================================================
+# = VARIABLES                                                       =
+# ===================================================================
+my $config = LoadFile('mason.yaml');
+
+my ( $base, $command, @params ) = ( path($0)->parent->absolute, shift( @args), @args );
+
+# ===================================================================
+# = DASHBOARD.                                                      =
+# ===================================================================
+given ($command) {
+	
+	when( /^make:database$/ ) {
+		database( $base, @params);
+	}
+	when( /^make:route$/ ) {
+		route( $base, @params);
+	}
+	when( /^migrate:db$/ ) {
+		migrate( $base, @params);
+	}
+	when( /^migrate:refresh$/ ) {
+		refresh( $base, @params);
+	}
+	default {
+		usage();
+	}
+	
+}
+
+
+# ===================================================================
+# = HELPER FUNCTIONS                                                =
+# ===================================================================
+
+sub usage
+{
+	cls();
+	
+	say join( "\n", (
+	"# Mason v1.0",
+	"Usage: perl mason [make:*]",
+	"Options:",
+	"	help - this help screen",
+	"Make:",
+	"	make:route - create a route",
+	"	make:database - create a database",
+	"Migrate:",
+	"	migrate:db - execute the database migrations",
+	"	migrate:refresh - truncate the database and re-run migrations",
+	));
+	
+	exit(0);
+}
+
+sub route
+{
+	my ( $base, $route  ) = @_;
+	
+	if ( $base->child('public'.lc($route).'/index.cgi')->exists() )
+	{
+		return;
+	}
+	
+	dd $config;
+	# lets create the index file
+	$base->child('public/'.lc($route).'/index.cgi')->touchpath->spew_utf8( $config->{'template'}->{'route'} );
+	$base->child('public/'.lc($route).'/index.yaml')->touchpath->spew_utf8( $config->{'template'}->{'ini'} );
+	return;
+}
+
+sub migrate
+{
+	my ( $base, $name  ) = @_;
+	
+	path("/tmp")->visit(
+	    sub {
+	        my ($path, $state) = @_;
+	        return if $path->is_dir;
+	        $state->{$path} = -s $path;
+	    },
+	    { recurse => 1 }
+	);
+	
+	$base->child('db/'.lc($name) )->visit(sub {
+		my ($path, $state) = @_;
+		return if ( $path->is_dir ;
+		
+	});
+	
+}
+
+sub refresh
+{
+	my ( $base, $name  ) = @_;
+	
+	if ( ! $base->child('db/'.lc($name).'/database.sqlite')->exists() )
+	{
+		$base->child('db/'.lc($name).'/database.sqlite')->touchpath;
+	}
+	
+	$base->child('db/'.lc($name).'/database.sqlite')->remove;
+	$base->child('db/'.lc($name).'/database.sqlite')->touch;
+	
+	migrate( $base, $name );
+}
+
+sub database
+{
+	my ( $base, $name  ) = @_;
+	
+
+	if ( $base->child('db/'.lc($name).'.sqlite')->exists() )
+	{
+		return 1;
+	}
+	
+	# Step 1 - create the migration folder
+	$base->child('db/'.lc($name))->mkpath;
+	# Step 2 - create the database
+	$base->child('db/'.lc($name).'/database.sqlite')->touch;
+	# Step 3 - create the first migration file
+	$base->child('db/'.lc($name).'/migration.0.sql')->touchpath;
+	
+	say ' [database] created .. db/'.lc($name).'.sqlite';
+	
+	return;
+}
+
+
+sub reset
+{
+	my ( $base, $name  ) = @_;
+}
+
+sub cls
+{
+	my $cmd = (  $^O eq 'MSWin32' ) ? 'cls' : 'clear';
+	system( $cmd );
+}
