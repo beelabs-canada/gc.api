@@ -8,8 +8,9 @@ use v5.16;
 use lib 'cgi-lib';
 
 use Path::Tiny qw/path/;
-use YAML::XS;
 use YAML::XS qw(LoadFile);
+use File::Next;
+use Text::Trim;
 
 use Data::Dmp;
 
@@ -38,6 +39,9 @@ given ($command) {
 	}
 	when( /^make:route$/ ) {
 		route( $base, @params);
+	}
+	when( /^make:migration$/ ) {
+		sqlfile( $base, @params);
 	}
 	when( /^migrate:db$/ ) {
 		migrate( $base, @params);
@@ -68,6 +72,7 @@ sub usage
 	"Make:",
 	"	make:route - create a route",
 	"	make:database - create a database",
+    "	make:migration - create a migration file",
 	"Migrate:",
 	"	migrate:db - execute the database migrations",
 	"	migrate:refresh - truncate the database and re-run migrations",
@@ -85,7 +90,6 @@ sub route
 		return;
 	}
 	
-	dd $config;
 	# lets create the index file
 	$base->child('public/'.lc($route).'/index.cgi')->touchpath->spew_utf8( $config->{'template'}->{'route'} );
 	$base->child('public/'.lc($route).'/index.yaml')->touchpath->spew_utf8( $config->{'template'}->{'ini'} );
@@ -94,23 +98,65 @@ sub route
 
 sub migrate
 {
+    
 	my ( $base, $name  ) = @_;
-	
-	path("/tmp")->visit(
-	    sub {
-	        my ($path, $state) = @_;
-	        return if $path->is_dir;
-	        $state->{$path} = -s $path;
-	    },
-	    { recurse => 1 }
-	);
-	
-	$base->child('db/'.lc($name) )->visit(sub {
-		my ($path, $state) = @_;
-		return if ( $path->is_dir ;
-		
-	});
-	
+    
+    my $dbfile = $base->child('db/'.lc($name).'/database.sqlite')->absolute->stringify ;
+    
+	if ( ! -e $dbfile )
+	{
+		say " [migrate] error - no database was found .. maybe run 'make:database $name' ?";
+        return \0;
+	}
+    
+    require DBI;
+    
+    my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile","","");
+    
+	say " [migrate] running migrations files for  - $name";
+        
+    my $files = File::Next::files( 
+        { file_filter => sub { /^migration\.(.*)\.sql$/ }, sort_files => 1 },
+        path('db/'.lc($name))->stringify
+    );
+    
+    while ( defined ( my $file = $files->() ) ) {
+       
+       print "     [parsing] SQL ( ".$file. " ) ...";
+       
+       my $sql = $base->child( $file )->slurp_utf8();
+       
+       if ( $sql !~ /\S/ )
+       {
+           print " [skipping] no SQL found\n";
+           continue;
+       }
+              
+       $dbh->do( _parseSQL( $sql ) );
+       
+       print "     executed (OK)\n";
+    }
+    	
+}
+
+sub sqlfile
+{
+	my ( $base, $name, $idx  ) = ( @_, 0 );
+    
+    my $files = File::Next::files( 
+        { file_filter => sub { /^migration\.(.*)\.sql$/ } },
+        path('db/'.lc($name))->stringify
+        );
+    
+    while ( defined ( my $file = $files->() ) ) {
+         $idx++;
+    }
+ 	
+    my $migration = $base->child('db/'.lc($name).'/migration.'.$idx.'.sql');
+    
+	$migration->touchpath;
+    
+    say "   [make] created a new migration file (".$migration->relative($base)->stringify.")"
 }
 
 sub refresh
@@ -124,6 +170,9 @@ sub refresh
 	
 	$base->child('db/'.lc($name).'/database.sqlite')->remove;
 	$base->child('db/'.lc($name).'/database.sqlite')->touch;
+    
+    say " [migrate:refresh] truncated the database - $name";
+    
 	
 	migrate( $base, $name );
 }
@@ -150,11 +199,17 @@ sub database
 	return;
 }
 
-
-sub reset
+sub _parseSQL
 {
-	my ( $base, $name  ) = @_;
+    my ( $sql ) = @_;
+    # remove comments
+    #$sql =~ s/((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*))//g;
+    $sql =~ s#("(""|[^"])*")|('(''|[^'])*')|(--[^\n\r]*)|(\/\*[\w\W]*?(?=\*\/)\*\/)##g;
+    $sql =~ s/\n+/ /g;
+    $sql =~ s/\s+/ /g;
+    return trim( $sql );
 }
+
 
 sub cls
 {
