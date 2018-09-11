@@ -49,6 +49,9 @@ given ($command) {
 	when( /^migrate:refresh$/ ) {
 		refresh( $base, @params);
 	}
+	when( /^route:silence$/ ) {
+		silence( $base, @params);
+	}
 	default {
 		usage();
 	}
@@ -76,6 +79,8 @@ sub usage
 	"Migrate:",
 	"	migrate:db - execute the database migrations",
 	"	migrate:refresh - truncate the database and re-run migrations",
+    "Route:",
+    "   route:silence - make a specific route not available to browsers (404)"
 	));
 	
 	exit(0);
@@ -208,6 +213,23 @@ sub _parseSQL
     $sql =~ s/\n+/ /g;
     $sql =~ s/\s+/ /g;
     return trim( $sql );
+}
+
+sub silence
+{
+	my ( $base, $route  ) = @_;
+	
+    my $htaccess = $base->child('public'.lc($route))->child('.htaccess') ;
+    
+	if ( $htaccess->exists() )
+	{
+        $htaccess->move( $htaccess->sibling( '.htaccess.'.time.'.bkp' )  );
+	}
+	
+	# lets create the index file
+	$htaccess->touchpath->spew_utf8( $config->{'route'}->{'silence'} );
+    
+    say ' [route] silenced .. public'.lc($route);
 }
 
 

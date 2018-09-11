@@ -1,4 +1,7 @@
 ---
+route:
+    silence: |
+        RedirectMatch 404 ^.*$
 template:
     ini: |
         ---
