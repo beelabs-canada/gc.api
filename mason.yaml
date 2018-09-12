@@ -22,6 +22,7 @@ template:
 
         use JSON::MaybeXS;
         use CGI::Compress::Gzip;
+        use YAML qw/LoadFile/;
 
         # =================
         # = PREPROCESSING =
@@ -32,3 +33,28 @@ template:
         # = RESPONSE =
         # ============
         my $cgi = CGI::Compress::Gzip->new();
+    console: |
+        #!/usr/bin/env perl
+
+        use strict;
+        use warnings;
+        use v5.16;
+
+        use File::Spec;
+        use lib File::Spec->catdir( substr( File::Spec->rel2abs($0), 0, index( File::Spec->rel2abs($0), '/public/')  ), 'cgi-lib');
+        
+        use Path::Tiny qw/path/;
+        use JSON::MaybeXS;
+        
+        use YAML qw/LoadFile/;
+
+        # =================
+        # = PREPROCESSING =
+        # =================
+
+
+
+
+        # ============
+        # = RESPONSE =
+        # ============

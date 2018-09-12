@@ -43,6 +43,9 @@ given ($command) {
 	when( /^make:migration$/ ) {
 		sqlfile( $base, @params);
 	}
+	when( /^make:console$/ ) {
+		console( $base, @params);
+	}
 	when( /^migrate:db$/ ) {
 		migrate( $base, @params);
 	}
@@ -76,6 +79,7 @@ sub usage
 	"	make:route - create a route",
 	"	make:database - create a database",
     "	make:migration - create a migration file",
+    "   make:console - create a console only route",
 	"Migrate:",
 	"	migrate:db - execute the database migrations",
 	"	migrate:refresh - truncate the database and re-run migrations",
@@ -237,4 +241,39 @@ sub cls
 {
 	my $cmd = (  $^O eq 'MSWin32' ) ? 'cls' : 'clear';
 	system( $cmd );
+}
+
+# ========================
+# = COMMAND LINE HELPERS =
+# ========================
+
+sub console
+{
+	my ( $base, $route ) = @_;
+    
+    my $rbase = $base->child('public'.lc($route));
+	
+	if ( $rbase->child('index.cgi')->exists() )
+	{
+		return;
+	}
+    
+   # my ( $idx, $crawl , $template, $ini  ) = ( 1, $rbase , $config->{'template'}->{'console'}, $config->{'template'}->{'ini'} );
+    
+#    while ( $crawl ne $base )
+#    {
+#        $crawl = $crawl->parent();
+#        $idx++;
+#    }
+    
+#    $template =~ s/<PARENTLEVEL>/$idx/;
+	
+	# lets create the index file
+	$rbase->child('index.cgi')->touchpath->spew_utf8( $config->{'template'}->{'console'} );
+	$rbase->child('index.yaml')->touchpath->spew_utf8($config->{'template'}->{'ini'} );
+    
+    say ' [route] created .. public'.lc($route);
+    
+    return silence( $base, $route );
+    
 }
