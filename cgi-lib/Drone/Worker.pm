@@ -12,15 +12,14 @@ use Mustache::Simple;
 use Digest::SHA qw(sha256_hex);
 
 use JSON::MaybeXS;
-use Data::Dump qw/dd/;
+use Data::Dmp qw/dd dmp/;
 
 
 
 use constant {
     HTTP => 0,
-    TEMPLATE => 1,
-    HELPERS => 2,
-    DATAMAP => 3
+    STACHE => 1,
+    HELPERS => 2
 };
 
 
@@ -54,7 +53,9 @@ sub new {
 
 sub get
 {
-    my ( $self, $url, $nocache ) = @_;
+    my ( $self, $url, $body, $nocache ) = @_;
+    
+    say " [get] $url";
     
     my $res = $self->[HTTP]->get( $url, 'Accept-Encoding' => HTTP::Message::decodable );
     
@@ -66,8 +67,17 @@ sub get
     if ($res->is_success) {
         
         my $json = decode_json( $res->decoded_content );
-        # lets add some properties 
-        $json->{'drn_url'} = $res->request()->url->as_string;
+        
+        if ( $body )
+        {
+            $json = $json->{$body};
+        }
+        
+        if ( ref($json) eq "HASH" )
+        {
+            # lets add some properties if an object
+            $json->{'drn_url'} = $res->request()->url->as_string;
+        }
         
         return $json
     }
@@ -78,31 +88,91 @@ sub get
     say "       HTTP get code: ". $res->code;
     say "       HTTP get msg : ". $res->message;
     say "-"x80;
+    
+    return ;
+}
+
+
+sub swarm
+{
+    my ( $self, $action ) = ( @_ );
+    
+    my $datamap = delete $action->{'mapping'};
+    my @resources = @{ delete $action->{urls} };
+    
+    my @results = ();
+    
+    foreach my $resource ( @resources ) {
+        # step one lets get the url to action
+        my $url = delete $resource->{url};
+        
+        $action = { %$action, %{$resource} };
+           
+        my $json = $self->get( $url, $action->{'body'} );
+        
+        if ( ref( $json ) ne 'ARRAY' )
+        {
+            push ( @results, $self->datamap( $action, $datamap, $json ) );
+            next;
+        }
+        
+        push( @results, $self->datamap( $action, $datamap, $_ ) ) for (@$json);
+        
+    }
+    return @results;
 }
 
 sub datamap
 {
-     my ( $self, $mapping ) = ( @_ );
+     my ( $self, $action, $map, $data  ) = ( @_ );
      
-     if ( $mapping )
+     say "-"x80;
+     say "   [datamap] diagn ...";
+     say "       action: ". dmp($action);
+     say "       map: ". dmp($map);
+     say "       data: ".  dmp($data);
+     say "-"x80;
+     
+     
+     if ( $action->{'redirect'} )
      {
-         $self->[DATAMAP] = $mapping;
+        my $redirect = delete $action->{'redirect'};
+        
+        my $surl = $self->_template( $redirect, $data );
+          
+        $data = $self->get( $surl );
+        
+        return $self->transform( $action, $map, $data );
      }
      
-     $self->[DATAMAP];
+     return $self->transform( $data, $map );
+
 }
 
 sub transform
 {
-    my ( $self, $data, $overrides ) = ( @_ );
+    my ( $self, $data, $map ) = ( @_ );
     
-    my ( $map , $object ) = ( { %$self->[DATAMAP], %$overrides }, {} );
+    my $object = {};
         
     foreach my $indx ( keys $map ) {
-        say "indx -> $indx / ".$map->{$indx};
+        
+        my @command = split(/\:/, $indx );
+        
+        if ( scalar @command > 1 )
+        {
+            # extension
+            my $cmd = '_'.$command[1];
+            
+            $object->{$command[0]} = $self->$cmd( $data->{ $map->{$indx} } );
+            
+            next;
+        }
+        
+        $object->{$indx} =  $data->{ $map->{$indx} };
     }
     
-    
+    return $object;
 }
 
 sub _truncate
@@ -113,13 +183,13 @@ sub _truncate
 
 sub _template
 {
-     my ( $self, $data ) = ( @_ );
+     my ( $self, $template, $data ) = ( @_ );
+     
+     $data = { %{$data}, %{ $self->[HELPERS] } };
+
+     return $self->[STACHE]->render( $template, $data );
 }
 
-sub _redirect
-{
-     my ( $self, $url ) = ( @_ );
-}
 
 sub _hash
 {

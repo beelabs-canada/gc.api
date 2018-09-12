@@ -9,9 +9,10 @@ actions:
           category: Health Products
         - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=4&lim=50000000&off=0
           category: Consumer Products
-      category: Food
       type: json
+      category: Food
       lang: en
+      body: results
       redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/en
       mapping:
         data:freeze: json
@@ -28,6 +29,7 @@ actions:
         - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=fr&cat=4&lim=50000000&off=0
           category: Produits de consommation
       type: json
+      body: results
       category: Aliments
       lang: fr
       redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/fr
