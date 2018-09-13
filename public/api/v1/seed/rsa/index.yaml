@@ -2,9 +2,13 @@
 database:
     path: db/rsa/database.sqlite
 actions:
-    - urls: 
+    - urls:
         - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=1&lim=50000000&off=0
           category: Food
+        - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=3&lim=50000000&off=0
+          category: Health Products
+        - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=4&lim=50000000&off=0
+          category: Consumer Products
       type: json
       category: Food
       lang: en
@@ -22,7 +26,7 @@ actions:
         title: title
         abstract: panels.1.text
         url: url
-        date_issued: start_date
+        date_last_updated: start_date
     - urls:
         - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=fr&cat=1&lim=50000000&off=0
           category: Aliments
@@ -45,6 +49,6 @@ actions:
         title: title
         abstract: panels.1.text
         url: url
-        date_issued: start_date
+        date_last_updated: start_date
 
 

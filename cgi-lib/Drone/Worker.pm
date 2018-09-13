@@ -145,9 +145,7 @@ sub datamap
      
      my $out = $self->transform( $data, $map );
      
-     dd $out;
      return $out;
-
 }
 
 sub transform
@@ -205,7 +203,6 @@ sub _regex
 	my @results = $data =~ /$regex/g ;
 	
 	return \@results;
-	
 }
 
 sub _csv
@@ -263,8 +260,8 @@ sub _freeze
 {
     my ( $self, $data ) = ( @_ );
   
-    #return encode_json( $data );
-    return "ACTIVATE";
+    return encode_json( $data );
+    #return "ACTIVATE";
 }
 
 1;
