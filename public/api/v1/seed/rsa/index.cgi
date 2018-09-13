@@ -32,10 +32,11 @@ my @actions =  @{ $config->{actions} };
 
 for (my $idx = 0; $idx < scalar @actions; $idx++) {
     my $actn = $actions[$idx];
+    
     my @dataset = $worker->swarm( $actn );
     
     foreach my $record (@dataset) {
-        say " [record] .. ".$record->{'title'};
+        say " [record] .. ".dmp( $record );
     }
     
 }

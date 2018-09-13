@@ -13,14 +13,17 @@ use Digest::SHA qw(sha256_hex);
 
 use Scalar::Util qw/looks_like_number/;
 use JSON::MaybeXS;
+use Text::CSV;
 use Data::Dmp qw/dd dmp/;
 
+use Text::Trim;
 
 
 use constant {
     HTTP => 0,
     STACHE => 1,
-    HELPERS => 2
+    HELPERS => 2,
+    CSV => 3
 };
 
 
@@ -44,10 +47,13 @@ sub new {
     my $stache = Mustache::Simple->new();
     
     
+    my $csv = Text::CSV->new();
+    
     return bless ([
         $http, # httpclient
         $stache,
-        $helpers
+        $helpers,
+        $csv
     ], $class);
 }
 
@@ -135,7 +141,12 @@ sub datamap
         $data = $self->get( $surl );
      }
      
-     return $self->transform( $data, $map );
+     $map->{'_globals'} = $action;
+     
+     my $out = $self->transform( $data, $map );
+     
+     dd $out;
+     return $out;
 
 }
 
@@ -144,25 +155,23 @@ sub transform
     my ( $self, $data, $map ) = ( @_ );
     
     my $object = {};
+    
+    # lets make the _globals accessible to object properties
+    $data->{'_globals'} = delete $map->{'_globals'};
         
     foreach my $idx ( keys $map ) {
 		
-		if ( $idx eq 'data:freeze' )
-		{
-			$object->{'data'} = $self->_freeze( $data ) ;
-			next;
-		}
-        
         my @action = split(/\:/, $idx );
 		
 		my $field = shift( @action );
-				
-		my @param = ( ref ( $map->{$idx} ) eq 'ARRAY' ) ? @{ $map->{$idx} }[0] : ( $map->{$idx} ) ;
-		
+        
+		my @param = ( ref ( $map->{$idx} ) eq 'ARRAY' ) ? @{ $map->{$idx} } : ( $map->{$idx} ) ;
+        
 		my $value = $self->_dottags( shift( @param ) , $data );
 				
 		if ( @action )
 		{
+            
 			my $func = '_'.$action[0];
 			$value = $self->$func( @param , $value )
 		}
@@ -172,6 +181,7 @@ sub transform
     
     return $object;
 }
+
 
 sub _truncate
 {
@@ -192,20 +202,27 @@ sub _regex
 {
 	my ( $self, $regex, $data ) = ( @_ );
 	
-	#dd $regex;
+	my @results = $data =~ /$regex/g ;
 	
-	my @results = ( $data =~ m/$regex/ );
+	return \@results;
 	
-	#dd @results;
-	
-	return @results;
-	
+}
+
+sub _csv
+{
+    my ( $self, $regex, $delimiter, $data ) = ( @_ );
+
+    my ( $csv ) = $data =~ /$regex/;
+    
+    return ( $self->[CSV]->parse( trim( $csv ) ) ) ? join( $delimiter, $self->[CSV]->fields() ) : "";
 }
 
 sub _dottags {
 	my ( $self, $notation, $data ) = ( @_ );
 	
 	return '' unless ( $notation );
+
+    return $data if ( $notation eq '*' );
 
 	
 	foreach my $idx ( split /\./, $notation )
@@ -214,7 +231,7 @@ sub _dottags {
 		{
 			# this is number so lets assume it works
 			
-			if ( ref( $data ) eq 'ARRAY' and scalar( $data ) <= $idx )
+			if ( ref( $data ) eq 'ARRAY' and scalar( $data ) >= $idx )
 			{
 				$data = $data->[$idx];
 				next;
@@ -245,9 +262,9 @@ sub _hash
 sub _freeze
 {
     my ( $self, $data ) = ( @_ );
-    
-   return encode_json( $data );
-    
+  
+    #return encode_json( $data );
+    return "ACTIVATE";
 }
 
 1;
