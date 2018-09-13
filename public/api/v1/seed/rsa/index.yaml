@@ -15,8 +15,13 @@ actions:
       body: results
       redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/en
       mapping:
-        data:freeze: json
-        id:hash: drn_url
+        data:freeze: 
+            - json
+        category:regex:
+            - panels.1.text
+            - <b>Category:</b>\s*((.[^,]+(?:,)?)+)\s*<BR/>
+        id:hash:
+            - drn_url
         title: title
         abstract: panels.1.text
         url: url
@@ -34,8 +39,13 @@ actions:
       lang: fr
       redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/fr
       mapping:
-        data:freeze: json
-        id:hash: drn_url
+        data:freeze: 
+            - json
+        category:regex:
+            - panels.1.text
+            - <b>Catégorie:</b>\s*((.[^,]+(?:,)?)+)\s*<BR/>
+        id:hash:
+            - drn_url
         title: title
         abstract: panels.1.text
         url: url

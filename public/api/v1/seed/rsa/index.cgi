@@ -15,6 +15,7 @@ use YAML::XS qw/LoadFile/;
 
 use Data::Dmp qw/dd dmp/;
 
+binmode STDOUT, ":encoding(UTF-8)";
 
 # =================
 # = PREPROCESSING =
