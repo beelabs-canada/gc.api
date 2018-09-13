@@ -11,6 +11,7 @@ use String::Truncate;
 use Mustache::Simple;
 use Digest::SHA qw(sha256_hex);
 
+use Scalar::Util qw/looks_like_number/;
 use JSON::MaybeXS;
 use Data::Dmp qw/dd dmp/;
 
@@ -125,24 +126,13 @@ sub swarm
 sub datamap
 {
      my ( $self, $action, $map, $data  ) = ( @_ );
-     
-     say "-"x80;
-     say "   [datamap] diagn ...";
-     say "       action: ". dmp($action);
-     say "       map: ". dmp($map);
-     say "       data: ".  dmp($data);
-     say "-"x80;
-     
-     
+          
      if ( $action->{'redirect'} )
      {
-        my $redirect = delete $action->{'redirect'};
         
-        my $surl = $self->_template( $redirect, $data );
+        my $surl = $self->_template( $action->{'redirect'}, $data );
           
         $data = $self->get( $surl );
-        
-        return $self->transform( $action, $map, $data );
      }
      
      return $self->transform( $data, $map );
@@ -155,21 +145,29 @@ sub transform
     
     my $object = {};
         
-    foreach my $indx ( keys $map ) {
+    foreach my $idx ( keys $map ) {
+		
+		if ( $idx eq 'data:freeze' )
+		{
+			$object->{'data'} = $self->_freeze( $data ) ;
+			next;
+		}
         
-        my @command = split(/\:/, $indx );
-        
-        if ( scalar @command > 1 )
-        {
-            # extension
-            my $cmd = '_'.$command[1];
-            
-            $object->{$command[0]} = $self->$cmd( $data->{ $map->{$indx} } );
-            
-            next;
-        }
-        
-        $object->{$indx} =  $data->{ $map->{$indx} };
+        my @action = split(/\:/, $idx );
+		
+		my $field = shift( @action );
+				
+		my @param = ( ref ( $map->{$idx} ) eq 'ARRAY' ) ? @{ $map->{$idx} }[0] : ( $map->{$idx} ) ;
+		
+		my $value = $self->_dottags( shift( @param ) , $data );
+				
+		if ( @action )
+		{
+			my $func = '_'.$action[0];
+			$value = $self->$func( @param , $value )
+		}
+		        
+        $object->{$field} = $value ;
     }
     
     return $object;
@@ -190,21 +188,66 @@ sub _template
      return $self->[STACHE]->render( $template, $data );
 }
 
+sub _regex
+{
+	my ( $self, $regex, $data ) = ( @_ );
+	
+	#dd $regex;
+	
+	my @results = ( $data =~ m/$regex/ );
+	
+	#dd @results;
+	
+	return @results;
+	
+}
+
+sub _dottags {
+	my ( $self, $notation, $data ) = ( @_ );
+	
+	return '' unless ( $notation );
+
+	
+	foreach my $idx ( split /\./, $notation )
+	{
+		if ( looks_like_number( $idx ) )
+		{
+			# this is number so lets assume it works
+			
+			if ( ref( $data ) eq 'ARRAY' and scalar( $data ) <= $idx )
+			{
+				$data = $data->[$idx];
+				next;
+			}
+		
+			return '';
+		}
+		
+		if ( ! exists $data->{ $idx } )
+		{
+			return '';
+		}
+		
+		$data = $data->{ $idx };
+	}
+	
+	return $data;
+}
+
 
 sub _hash
 {
     my ( $self, $data ) = ( @_ );
+	
     return sha256_hex( $data );
 }
 
 sub _freeze
 {
-    my ( $self, $format ,$data ) = ( @_ );
+    my ( $self, $data ) = ( @_ );
     
-    if ( $format eq 'json' )
-    {
-        return json_encode( $data );
-    }
+   return encode_json( $data );
+    
 }
 
 1;
