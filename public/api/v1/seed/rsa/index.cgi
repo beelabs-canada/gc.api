@@ -32,27 +32,13 @@ my @actions =  @{ $config->{actions} };
 
 for (my $idx = 0; $idx < scalar @actions; $idx++) {
     my $actn = $actions[$idx];
-    
     my @dataset = $worker->swarm( $actn );
     
     foreach my $record (@dataset) {
-        say " [record] .. ".$record->{'id'}." / ".$record->{'title'};
+        say " [record] .. ".$record->{'title'};
     }
     
-    
-    #path('test.json')->spew_utf8( encode_json( \@dataset ) ) if ( $idx == 0 );
-    
-    exit;
-   #say " processing :: ". $actn->{urls}->[0]->{url};
 }
-
-
-
-#$worker->datamap( $config->{actions} )
-
-#dd $worker->get('http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=1&lim=5&off=0', 1);
-
-
 
 # ============
 # = RESPONSE =
