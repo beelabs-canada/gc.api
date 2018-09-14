@@ -41,14 +41,34 @@ actions:
       redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/fr
       mapping:
         data:freeze: '*'
-        category:regex:
+        lang: _globals.lang
+        category: _globals.category
+        subcategory:csv:
             - panels.0.text
-            - <b>Catégorie:</b>\s*((.[^,]+(?:,)?)+)\s*<BR/>
+            - <b>Catégorie:</b>(.*?)<BR/>
             - ;
         id:hash: drn_url
         title: title
         abstract: panels.1.text
         url: url
         date_last_updated: start_date
+    - urls:
+        - url: http://data.tc.gc.ca/extracts/vrdb_full_monthly.csv
+      type: csv
+      category: vehicle
+      lang: en
+      mapping:
+        data:freeze: '*'
+        id:hash: RECALL_NUMBER_NUM
+        category: _globals.category
+        lang: _globals.lang
+        subcategory: CATEGORY_ETXT
+        title:template: "{{#uppercase}}{{MAKE_NAME_NM}}{{/uppercase}} issued a {{#lowercase}}{{SYSTEM_TYPE_ETXT}}{{/lowercase}} recall on the {{#uppercase}}{{YEAR}} {{MAKE_NAME_NM}} {{MODEL_NAME_NM}}{{/uppercase}} model(s)"
+        make: MAKE_NAME_NM
+        model: MODEL_NAME_NM
+        year: YEAR
+        url:template: http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=eng&rn={{recallId}}
+        date_last_updated:epoch: RECALL_DATE_DTE
+        abstract: COMMENT_ETXT
 
 

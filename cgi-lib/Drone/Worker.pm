@@ -17,13 +17,15 @@ use Text::CSV;
 use Data::Dmp qw/dd dmp/;
 
 use Text::Trim;
+use SQL::Abstract;
 
 
 use constant {
     HTTP => 0,
     STACHE => 1,
     HELPERS => 2,
-    CSV => 3
+    CSV => 3,
+    SQL => 4
 };
 
 
@@ -46,6 +48,7 @@ sub new {
     
     my $stache = Mustache::Simple->new();
     
+    my $sql = SQL::Abstract->new();
     
     my $csv = Text::CSV->new();
     
@@ -53,7 +56,8 @@ sub new {
         $http, # httpclient
         $stache,
         $helpers,
-        $csv
+        $csv,
+        $sql
     ], $class);
 }
 
@@ -102,7 +106,7 @@ sub get
 
 sub swarm
 {
-    my ( $self, $action ) = ( @_ );
+    my ( $self, $action, $table, $dbh ) = ( @_ );
     
     my $datamap = delete $action->{'mapping'};
     my @resources = @{ delete $action->{urls} };
@@ -117,13 +121,22 @@ sub swarm
            
         my $json = $self->get( $url, $action->{'body'} );
         
-        if ( ref( $json ) ne 'ARRAY' )
+        #{
+        #    push ( @results, $self->datamap( $action, $datamap, $json ) );
+        #    next;
+        #}
+        
+        #push( @results, $self->datamap( $action, $datamap, $_ ) ) for (@$json);
+        
+        foreach my $item ( (ref( $json ) ne 'ARRAY' ) ? ( $json ) : @$json )
         {
-            push ( @results, $self->datamap( $action, $datamap, $json ) );
-            next;
+            my ($stmt, @bind) = $self->[SQL]->insert( $table,  $self->datamap( $action, $datamap, $item ) );
+            my $sth = $dbh->prepare($stmt);
+            $sth->execute(@bind);
+            $sth->finish();
+            say " [inserted] recall : ".$item->{ url };
         }
         
-        push( @results, $self->datamap( $action, $datamap, $_ ) ) for (@$json);
         
     }
     return @results;

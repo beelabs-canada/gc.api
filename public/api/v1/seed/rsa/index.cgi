@@ -47,22 +47,22 @@ my @actions =  @{ $config->{actions} };
 for (my $idx = 0; $idx < scalar @actions; $idx++) {
     my $actn = $actions[$idx];
     
-    my @dataset = $worker->swarm( $actn );
+    $worker->swarm( $actn, 'recalls', $dbh );
     
-    foreach my $record (@dataset)
-    {
-       
-       
-       my ($stmt, @bind) = $sql->insert( 'recalls', $record );
-       
-       my $sth = $dbh->prepare($stmt);
-       
-       $sth->execute(@bind);
-       
-       $sth->finish();
-       
-       say " [inserted] recall : ".$record->{ url };
-    }
+    # foreach my $record (@dataset)
+ #    {
+ #
+ #
+ #       my ($stmt, @bind) = $sql->insert( 'recalls', $record );
+ #
+ #       my $sth = $dbh->prepare($stmt);
+ #
+ #       $sth->execute(@bind);
+ #
+ #       $sth->finish();
+ #
+ #       say " [inserted] recall : ".$record->{ url };
+ #    }
     
 }
 
