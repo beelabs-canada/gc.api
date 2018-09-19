@@ -1,0 +1,107 @@
+
+    - url: http://data.tc.gc.ca/extracts/vrdb_full_monthly.csv
+      type: csv
+      category: vehicle
+      lang: en
+      mapping:
+        data:encode:
+        - "*"
+        pid: RECALL_NUMBER_NUM
+        subcategory:skip:
+        - MAKE_NAME_NM
+        - MODEL_NAME_NM
+        title:template:
+        - "{{#uppercase}}{{manufacturer}}{{/uppercase}} issued a {{#lowercase}}{{system}}{{/lowercase}}
+          recall on the {{#uppercase}}{{year}} {{make}} {{model}}{{/uppercase}} models"
+        - manufacturer: MAKE_NAME_NM
+          make: MAKE_NAME_NM
+          model: MODEL_NAME_NM
+          year: YEAR
+          system: SYSTEM_TYPE_ETXT
+        url:template:
+        - http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=eng&rn={{recallId}}
+        - recallId: RECALL_NUMBER_NUM
+        date:epoch:
+        - RECALL_DATE_DTE
+        abstract:truncate:
+        - COMMENT_ETXT
+    - url: http://data.tc.gc.ca/extracts/vrdb_full_monthly.csv
+      type: csv
+      category: vehicle
+      lang: fr
+      mapping:
+        data:encode:
+        - "*"
+        pid: RECALL_NUMBER_NUM
+        subcategory:skip:
+        - MAKE_NAME_NM
+        - MODEL_NAME_NM
+        title:template:
+        - "{{#uppercase}}{{manufacturer}}{{/uppercase}} a publié un rappel les modèles
+          {{#uppercase}}{{model}} {{make}} {{year}}{{/uppercase}}  concernant la système
+          {{#lowercase}}{{system}}{{/lowercase}} "
+        - manufacturer: MAKE_NAME_NM
+          make: MAKE_NAME_NM
+          model: MODEL_NAME_NM
+          year: YEAR
+          system: SYSTEM_TYPE_FTXT
+        url:template:
+        - http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=fra&rn={{recallId}}
+        - recallId: RECALL_NUMBER_NUM
+        date:epoch:
+        - RECALL_DATE_DTE
+        abstract:truncate:
+        - COMMENT_FTXT
+    - url: http://data.tc.gc.ca/extracts/vrdb_60days_daily.csv
+      type: csv
+      category: vehicle
+      lang: en
+      mapping:
+        data:encode:
+        - "*"
+        pid: RECALL_NUMBER_NUM
+        subcategory:skip:
+        - MAKE_NAME_NM
+        - MODEL_NAME_NM
+        title:template:
+        - "{{#uppercase}}{{manufacturer}}{{/uppercase}} issued a recall for the {{#lowercase}}{{system}}{{/lowercase}}
+          system on the {{#uppercase}}{{year}} {{make}} {{model}}{{/uppercase}} model"
+        - manufacturer: MAKE_NAME_NM
+          make: MAKE_NAME_NM
+          model: MODEL_NAME_NM
+          year: YEAR
+          system: SYSTEM_TYPE_ETXT
+        url:template:
+        - http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=eng&rn={{recallId}}
+        - recallId: RECALL_NUMBER_NUM
+        date:epoch:
+        - RECALL_DATE_DTE
+        abstract:truncate:
+        - COMMENT_ETXT
+    - url: http://data.tc.gc.ca/extracts/vrdb_60days_daily.csv
+      type: csv
+      category: vehicle
+      lang: fr
+      mapping:
+        data:encode:
+        - "*"
+        pid: RECALL_NUMBER_NUM
+        subcategory:skip:
+        - MAKE_NAME_NM
+        - MODEL_NAME_NM
+        title:template:
+        - "{{#uppercase}}{{manufacturer}}{{/uppercase}} a publié un rappel sur la modèle
+          {{#uppercase}}{{model}} {{make}} {{year}}{{/uppercase}} concernant la système
+          {{#lowercase}}{{system}}{{/lowercase}} "
+        - manufacturer: MAKE_NAME_NM
+          make: MAKE_NAME_NM
+          model: MODEL_NAME_NM
+          year: YEAR
+          system: SYSTEM_TYPE_FTXT
+        url:template:
+        - http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=fra&rn={{recallId}}
+        - recallId: RECALL_NUMBER_NUM
+        date:epoch:
+        - RECALL_DATE_DTE
+        abstract:truncate:
+        - COMMENT_FTXT

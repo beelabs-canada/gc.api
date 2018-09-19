@@ -14,18 +14,22 @@ use Digest::SHA qw(sha256_hex);
 use Scalar::Util qw/looks_like_number/;
 use JSON::MaybeXS;
 use Text::CSV;
+use Parse::CSV;
 use Data::Dmp qw/dd dmp/;
 
 use Text::Trim;
 use SQL::Abstract;
 
+use Drone::Template;
+use Path::Tiny qw/path/;
+use File::Basename;
+
 
 use constant {
     HTTP => 0,
     STACHE => 1,
-    HELPERS => 2,
-    CSV => 3,
-    SQL => 4
+    CSV => 2,
+    SQL => 3
 };
 
 
@@ -41,12 +45,8 @@ sub new {
 		conn_cache => LWP::ConnCache->new()
     );
     
-    my $helpers = {
-        '@uppercase' => sub { return uc( shift ) },
-        '@lowercase' => sub { return lc( shift ) } 
-    };
     
-    my $stache = Mustache::Simple->new();
+    my $stache = Drone::Template->new();
     
     my $sql = SQL::Abstract->new();
     
@@ -55,10 +55,141 @@ sub new {
     return bless ([
         $http, # httpclient
         $stache,
-        $helpers,
         $csv,
         $sql
     ], $class);
+}
+
+
+
+
+
+sub swarm
+{
+    my ( $self, $action, $table, $dbh ) = ( @_ );
+    
+    my $datamap = delete $action->{'mapping'};
+    
+    my $dupes = ( exists $action->{'duplicates'} ) ? [ split( /,/, delete $action->{'duplicates'} ) ] : 'skip';
+    
+    my $type = delete $action->{type};
+    
+    my @resources = @{ delete $action->{urls} };
+    
+    if ( $type eq 'json' )
+    {
+        return $self->http( $action, $table, $dbh, $dupes, $datamap, @resources );
+    }
+    
+    return $self->csv( $action, $table, $dbh, $dupes, $datamap, @resources );
+    
+}
+
+sub http
+{
+    my ( $self, $action, $table, $dbh, $dupes, $datamap, @resources ) = @_;
+    
+    foreach my $resource ( @resources ) {
+        # step one lets get the url to action
+        my $url = delete $resource->{url};
+        
+        $action = { %$action, %{$resource} };
+           
+        my $json = $self->get( $url, $action->{'body'}, 1 );
+                
+        foreach my $item ( (ref( $json ) ne 'ARRAY' ) ? ( $json ) : @$json )
+        {
+            my $dataset = $self->datamap( $action, $datamap, $item );
+                        
+            if ( $dupes eq 'skip' &&  $self->exists( $table, $dbh, $dataset->{'id'} ) )
+            {
+                say "   [skipping] record already seen";
+                next;
+            }
+            
+            my ($stmt, @bind) = $self->[SQL]->insert( $table,  $dataset );
+            
+            my $sth = $dbh->prepare($stmt);
+            
+            $sth->execute(@bind);
+            $sth->finish();
+            
+            say " [inserted] recall : ".$item->{ url };
+        }
+        
+    }
+}
+
+sub csv
+{
+    my ( $self, $action, $table, $dbh, $dupes, $datamap, @resources ) = @_;
+    
+    foreach my $resource ( @resources ) {
+        # step one lets get the url to action
+        my $url = delete $resource->{url};
+        
+        $action = { %$action, %{$resource} };
+           
+        my $csv = $self->download( $url );
+        
+        my $parser = Parse::CSV->new(
+            file  =>  $csv->absolute->stringify,
+            names => 1,
+        );
+        
+        while ( my $row = $parser->fetch ) {
+            
+            my $dataset = $self->datamap( $action, $datamap, $row );
+            
+            if ( $self->exists( $table, $dbh, $dataset->{'id'} ) )
+            {
+                if ( $dupes eq 'skip' )
+                {
+                    say "   [skipping] record already seen";
+                    next;
+                }
+                            
+            
+                my ( $stmt, @bind ) = $self->merge( $table, $dbh, $dataset->{'id'} , $dataset, $dupes );
+            
+                my $sth = $dbh->prepare($stmt);
+            
+                $sth->execute(@bind);
+                $sth->finish();
+                
+                next;
+            }
+                        
+            my ($stmt, @bind) = $self->[SQL]->insert( $table,  $dataset );
+            
+            my $sth = $dbh->prepare($stmt);
+            
+            $sth->execute(@bind);
+            $sth->finish();
+            
+            say " [inserted] recall : ".$dataset->{ url };
+        }
+        
+    }
+}
+
+sub merge
+{
+    my ($self, $table, $dbh, $id, $dataset, $dupes ) = @_;
+    
+    my ( $orig ) = $dbh->selectrow_hashref("SELECT * FROM $table WHERE id = ?", undef, $id );
+    
+    foreach my $update (@$dupes) {
+        my @tags = split( /;/, $orig->{$update} );
+        my $new = $dataset->{$update};
+        
+        next if "$new" ~~ @tags;
+        
+        $orig->{$update} = join( ";", @tags, $new );
+    }
+    
+    return $self->[SQL]->update( $table, $orig, { id => $orig->{'id'} } );
+    
 }
 
 
@@ -103,43 +234,30 @@ sub get
     return ;
 }
 
-
-sub swarm
+sub download
 {
-    my ( $self, $action, $table, $dbh ) = ( @_ );
+    my ($self, $url ) = @_;
     
-    my $datamap = delete $action->{'mapping'};
-    my @resources = @{ delete $action->{urls} };
+    my $file = path( $0 )->sibling( basename( $url )  );
     
-    my @results = ();
-    
-    foreach my $resource ( @resources ) {
-        # step one lets get the url to action
-        my $url = delete $resource->{url};
-        
-        $action = { %$action, %{$resource} };
-           
-        my $json = $self->get( $url, $action->{'body'} );
-        
-        #{
-        #    push ( @results, $self->datamap( $action, $datamap, $json ) );
-        #    next;
-        #}
-        
-        #push( @results, $self->datamap( $action, $datamap, $_ ) ) for (@$json);
-        
-        foreach my $item ( (ref( $json ) ne 'ARRAY' ) ? ( $json ) : @$json )
-        {
-            my ($stmt, @bind) = $self->[SQL]->insert( $table,  $self->datamap( $action, $datamap, $item ) );
-            my $sth = $dbh->prepare($stmt);
-            $sth->execute(@bind);
-            $sth->finish();
-            say " [inserted] recall : ".$item->{ url };
-        }
-        
-        
+    if ( $file->exists )
+    {
+        return $file;
     }
-    return @results;
+    
+    $self->[HTTP]->get( $url, ':content_file' => $file->absolute->stringify );
+    
+    # lets not cache any assets
+    $self->[HTTP]->uncache();
+    
+    return $file;
+}
+
+sub exists
+{
+    my ($data, $table, $dbh, $id ) = @_;
+    
+    return ( $dbh->selectrow_array('SELECT id FROM '.$table.' WHERE id = ?', undef, $id ) ) ? 1 : 0;
 }
 
 sub datamap
@@ -178,7 +296,7 @@ sub transform
         
 		my @param = ( ref ( $map->{$idx} ) eq 'ARRAY' ) ? @{ $map->{$idx} } : ( $map->{$idx} ) ;
         
-		my $value = $self->_dottags( shift( @param ) , $data );
+		my $value = ( scalar( $action[0] ) && $action[0] eq 'template' ) ?  $data : $self->_dottags( shift( @param ) , $data );
 				
 		if ( @action )
 		{
@@ -193,7 +311,6 @@ sub transform
     return $object;
 }
 
-
 sub _truncate
 {
     my ( $self, $data ) = ( @_ );
@@ -204,8 +321,6 @@ sub _template
 {
      my ( $self, $template, $data ) = ( @_ );
      
-     $data = { %{$data}, %{ $self->[HELPERS] } };
-
      return $self->[STACHE]->render( $template, $data );
 }
 
@@ -261,6 +376,16 @@ sub _dottags {
 	return $data;
 }
 
+sub _epoch
+{
+    use Date::Parse;
+    
+    my ( $self, $date ) = ( @_ );
+    
+    my $epoch = str2time( $date );
+    
+    return $epoch;
+}
 
 sub _hash
 {
@@ -276,5 +401,7 @@ sub _freeze
     return encode_json( $data );
     #return "ACTIVATE";
 }
+
+
 
 1;

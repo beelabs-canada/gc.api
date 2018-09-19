@@ -45,10 +45,24 @@ my $config = LoadFile( path($0)->sibling('index.yaml')->stringify );
 my @actions =  @{ $config->{actions} };
 
 for (my $idx = 0; $idx < scalar @actions; $idx++) {
-    
     my $actn = $actions[$idx];
     
     $worker->swarm( $actn, 'recalls', $dbh );
+    
+    # foreach my $record (@dataset)
+ #    {
+ #
+ #
+ #       my ($stmt, @bind) = $sql->insert( 'recalls', $record );
+ #
+ #       my $sth = $dbh->prepare($stmt);
+ #
+ #       $sth->execute(@bind);
+ #
+ #       $sth->finish();
+ #
+ #       say " [inserted] recall : ".$record->{ url };
+ #    }
     
 }
 

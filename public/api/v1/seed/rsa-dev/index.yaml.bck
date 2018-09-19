@@ -10,6 +10,8 @@ actions:
     #     - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=4&lim=50000000&off=0
     #       category: Consumer Products
     #   type: json
+    #   duplicates:
+    #       - skip
     #   category: Food
     #   lang: en
     #   body: results
@@ -56,7 +58,9 @@ actions:
         - url: http://data.tc.gc.ca/extracts/vrdb_full_monthly.csv
       type: csv
       category: vehicle
-      duplicates: make,model,year
+      duplicates: 
+          - append
+          - MAKE_NAME_NM|MODEL_NAME_NM|YEAR
       lang: en
       mapping:
         data:freeze: '*'
@@ -64,10 +68,12 @@ actions:
         category: _globals.category
         lang: _globals.lang
         subcategory: CATEGORY_ETXT
-        title:template: "{{#@uppercase}}{{MAKE_NAME_NM}}{{/@uppercase}} issued a {{#@lowercase}}{{SYSTEM_TYPE_ETXT}}{{/@lowercase}} recall on the {{#@uppercase}}{{YEAR}} {{MAKE_NAME_NM}} {{MODEL_NAME_NM}}{{/@uppercase}} model(s)"
+        title:template: "{{#uppercase}}{{MAKE_NAME_NM}}{{/uppercase}} issued a {{#lowercase}}{{SYSTEM_TYPE_ETXT}}{{/lowercase}} recall on the {{#uppercase}}{{YEAR}} {{MAKE_NAME_NM}} {{MODEL_NAME_NM}}{{/uppercase}} model(s)"
         make: MAKE_NAME_NM
         model: MODEL_NAME_NM
         year: YEAR
-        url:template: http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=eng&rn={{RECALL_NUMBER_NUM}}
+        url:template: http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=eng&rn={{recallId}}
         date_last_updated:epoch: RECALL_DATE_DTE
         abstract: COMMENT_ETXT
+
+

@@ -1,0 +1,86 @@
+---
+database:
+    path: db/rsa/database.sqlite
+    duplicates: skip
+httpclient:
+    type: json
+    cache_dir: /Users/masterbee/Desktop/my.anvil/gc.api/.cache
+    response-body: results
+    user-agent: APIx WebClient (v1.00 alpha)
+catalog:
+    - id: Health Canada Recalls
+      resources:
+        - uri: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=1&lim=5&off=0
+          category: Food
+          import: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/en
+        # - uri: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=3&lim=50000000&off=0
+#           category: Health Products
+#           redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/en
+#         - uri: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=en&cat=4&lim=50000000&off=0
+#           category: Consumer Products
+#           redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/en
+
+      type: json
+      category: Food
+      lang: en
+      httpclient:
+          response-body: results
+      set:
+        data:freeze: '*'
+        subcategory:csv:
+            - panels.0.text
+            - <b>Category:</b>(.*?)<BR/>
+            - ;
+        id:hash: drn_url
+        title: title
+        abstract: panels.1.text
+        url: url
+        date_last_updated: start_date
+    # - urls:
+    #     - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=fr&cat=1&lim=50000000&off=0
+    #       category: Aliments
+    #     - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=fr&cat=3&lim=50000000&off=0
+    #       category: Produits de santé
+    #     - url: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/search?search=&lang=fr&cat=4&lim=50000000&off=0
+    #       category: Produits de consommation
+    #   type: json
+    #   body: results
+    #   category: Aliments
+    #   lang: fr
+    #   redirect: http://healthycanadians.gc.ca/recall-alert-rappel-avis/api/{{recallId}}/fr
+    #   mapping:
+    #     data:freeze: '*'
+    #     lang: _globals.lang
+    #     category: _globals.category
+    #     subcategory:csv:
+    #         - panels.0.text
+    #         - <b>Catégorie:</b>(.*?)<BR/>
+    #         - ;
+    #     id:hash: drn_url
+    #     title: title
+    #     abstract: panels.1.text
+    #     url: url
+    #     date_last_updated: start_date
+    # - urls:
+    #     - url: http://data.tc.gc.ca/extracts/vrdb_full_monthly.csv
+    #   type: csv
+    #   category: vehicle
+    #   duplicates:
+    #       - append
+    #       - MAKE_NAME_NM|MODEL_NAME_NM|YEAR
+    #   lang: en
+    #   mapping:
+    #     data:freeze: '*'
+    #     id:hash: RECALL_NUMBER_NUM
+    #     category: _globals.category
+    #     lang: _globals.lang
+    #     subcategory: CATEGORY_ETXT
+    #     title:template: "{{#uppercase}}{{MAKE_NAME_NM}}{{/uppercase}} issued a {{#lowercase}}{{SYSTEM_TYPE_ETXT}}{{/lowercase}} recall on the {{#uppercase}}{{YEAR}} {{MAKE_NAME_NM}} {{MODEL_NAME_NM}}{{/uppercase}} model(s)"
+    #     make: MAKE_NAME_NM
+    #     model: MODEL_NAME_NM
+    #     year: YEAR
+    #     url:template: http://wwwapps.tc.gc.ca/Saf-Sec-Sur/7/VRDB-BDRV/search-recherche/detail.aspx?lang=eng&rn={{recallId}}
+    #     date_last_updated:epoch: RECALL_DATE_DTE
+    #     abstract: COMMENT_ETXT
+
+
